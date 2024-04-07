@@ -119,15 +119,22 @@ const Streamer: NextPage = () => {
       }
       const updatedBalance = BigInt(`0x${data.updatedBalance}`);
 
-      /*
-       *  Checkpoint 3:
-       *
-       *  currently, this function recieves and stores vouchers uncritically.
-       *
-       *  recreate the packed, hashed, and arrayified message from reimburseService (above),
-       *  and then use verifyMessage() to confirm that voucher signer was
-       *  `clientAddress`. (If it wasn't, log some error message and return).
-       */
+      const packed = encodePacked(["uint256"], [updatedBalance]);
+      const hashed = keccak256(packed);
+      const arrayified = toBytes(hashed);
+      const signature = await userSigner?.signMessage({ message: { raw: arrayified } });
+     
+      const valid = await verifyMessage({
+        address: clientAddress,
+        message: { raw: arrayified },
+        signature: data.signature,
+      });
+
+      if (!valid) {
+        console.error("Invalid voucher signature");
+        return;
+      }
+
       const existingVoucher = vouchers[clientAddress];
 
       // update our stored voucher if this new one is more valuable
@@ -214,15 +221,15 @@ const Streamer: NextPage = () => {
   });
 
   // Checkpoint 5
-  // const { writeAsync: challengeChannel } = useScaffoldContractWrite({
-  //   contractName: "Streamer",
-  //   functionName: "challengeChannel",
-  // });
+  const { writeAsync: challengeChannel } = useScaffoldContractWrite({
+    contractName: "Streamer",
+    functionName: "challengeChannel",
+  });
 
-  // const { writeAsync: defundChannel } = useScaffoldContractWrite({
-  //   contractName: "Streamer",
-  //   functionName: "defundChannel",
-  // });
+  const { writeAsync: defundChannel } = useScaffoldContractWrite({
+    contractName: "Streamer",
+    functionName: "defundChannel",
+  });
 
   const [recievedWisdom, setReceivedWisdom] = useState("");
 
@@ -252,7 +259,7 @@ const Streamer: NextPage = () => {
     //    and on-chain (by the Streamer contract). These are distinct runtime environments, so
     //    care needs to be taken that signatures are applied to specific data encodings.
     //
-    //    the toBytes call below encodes this data in an EVM compatible way
+    //    the toBytes call below encodes this data in an EVM compatible wayw
     //
     //    see: https://blog.ricmoo.com/verifying-messages-in-solidity-50a94f82b2ca for some
     //         more on EVM verification of messages signed off-chain
@@ -264,7 +271,7 @@ const Streamer: NextPage = () => {
     const signature = await userSigner?.signMessage({ message: { raw: arrayified } });
 
     const hexBalance = updatedBalance.toString(16);
-
+    console.log("hexBalance", hexBalance);
     if (hexBalance && signature) {
       userChannel.current?.postMessage({
         updatedBalance: hexBalance,
@@ -347,13 +354,13 @@ const Streamer: NextPage = () => {
                     </div>
 
                     {/* Checkpoint 4: */}
-                    {/* <CashOutVoucherButton
+                    <CashOutVoucherButton
                       key={clientAddress}
                       clientAddress={clientAddress}
                       challenged={challenged}
                       closed={closed}
                       voucher={vouchers[clientAddress]}
-                    /> */}
+                    />
                   </div>
                 ))}
               </div>
@@ -390,7 +397,7 @@ const Streamer: NextPage = () => {
                   </div>
 
                   {/* Checkpoint 5: challenge & closure */}
-                  {/* <div className="flex flex-col items-center pb-6">
+                  <div className="flex flex-col items-center pb-6">
                     <button
                       disabled={challenged.includes(userAddress)}
                       className="btn btn-primary"
@@ -428,7 +435,7 @@ const Streamer: NextPage = () => {
                     >
                       Close and withdraw funds
                     </button>
-                  </div> */}
+                  </div>
                 </div>
               ) : userAddress && closed.includes(userAddress) ? (
                 <div className="text-lg">
